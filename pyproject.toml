@@ -1,0 +1,19 @@
+[project]
+name = "gcinput-viewer"
+version = "0.1.0"
+description = "GCコントローラ入力リアルタイム可視化 WebSocketサーバ"
+requires-python = ">=3.13"
+dependencies = [
+    "pyserial",
+    "aiohttp",
+]
+
+[project.scripts]
+gcinput-viewer = "gcinput_viewer.server:cli_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
