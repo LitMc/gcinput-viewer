@@ -140,6 +140,14 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 860, H = 220;
 
+// HiDPI support
+const dpr = window.devicePixelRatio || 1;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + 'px';
+canvas.style.height = H + 'px';
+ctx.scale(dpr, dpr);
+
 // ---------- Barcode ----------
 const BAR_W = 12;
 const BAR_GAP = 1;
@@ -229,16 +237,22 @@ function isPressed(buttons, bit) {
   return (buttons >> bit) & 1;
 }
 
-// Draw octagon gate
-function drawOctagon(cx, cy, r) {
+// Draw octagon gate — Oct(a) shape
+function drawOctagon(ctx, cx, cy, a) {
+  const k = a / Math.SQRT2;
+  const verts = [
+    [cx + a, cy],       // 0°
+    [cx + k, cy - k],   // 45°
+    [cx,     cy - a],   // 90°
+    [cx - k, cy - k],   // 135°
+    [cx - a, cy],       // 180°
+    [cx - k, cy + k],   // 225°
+    [cx,     cy + a],   // 270°
+    [cx + k, cy + k],   // 315°
+  ];
   ctx.beginPath();
-  for (let i = 0; i < 8; i++) {
-    const angle = (Math.PI / 8) + (i * Math.PI / 4);
-    const x = cx + r * Math.cos(angle);
-    const y = cy - r * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (let i = 1; i < 8; i++) ctx.lineTo(verts[i][0], verts[i][1]);
   ctx.closePath();
 }
 
@@ -247,7 +261,7 @@ function drawStick(cx, cy, radius, valX, valY) {
   // Octagon gate
   ctx.strokeStyle = '#666';
   ctx.lineWidth = 1.5;
-  drawOctagon(cx, cy, radius);
+  drawOctagon(ctx, cx, cy, radius);
   ctx.stroke();
 
   // Crosshair
@@ -439,21 +453,26 @@ function draw(data) {
   ctx.fillText('Y' + cyStr, cstickCX + cstickR + 5, cstickCY + 10);
 }
 
-// WebSocket
+// WebSocket + requestAnimationFrame
+let latestData = null;
+
 function connect() {
   const wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
   const ws = new WebSocket(wsProto + location.host + '/ws');
 
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
-    draw(msg);
-  };
+  ws.onmessage = (ev) => { latestData = JSON.parse(ev.data); };
 
   ws.onclose = () => setTimeout(connect, 500);
   ws.onerror = () => ws.close();
 }
 
+function loop() {
+  if (latestData) { draw(latestData); }
+  requestAnimationFrame(loop);
+}
+
 connect();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
@@ -477,6 +496,14 @@ canvas { display:block; }
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 480, H = 1080;
+
+// HiDPI support
+const dpr = window.devicePixelRatio || 1;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + 'px';
+canvas.style.height = H + 'px';
+ctx.scale(dpr, dpr);
 
 // ---------- Barcode ----------
 const WGT_BAR_W = 8;
@@ -567,16 +594,22 @@ function isPressed(buttons, bit) {
   return (buttons >> bit) & 1;
 }
 
-// Draw octagon gate
-function drawOctagon(cx, cy, r) {
+// Draw octagon gate — Oct(a) shape
+function drawOctagon(ctx, cx, cy, a) {
+  const k = a / Math.SQRT2;
+  const verts = [
+    [cx + a, cy],       // 0°
+    [cx + k, cy - k],   // 45°
+    [cx,     cy - a],   // 90°
+    [cx - k, cy - k],   // 135°
+    [cx - a, cy],       // 180°
+    [cx - k, cy + k],   // 225°
+    [cx,     cy + a],   // 270°
+    [cx + k, cy + k],   // 315°
+  ];
   ctx.beginPath();
-  for (let i = 0; i < 8; i++) {
-    const angle = (Math.PI / 8) + (i * Math.PI / 4);
-    const x = cx + r * Math.cos(angle);
-    const y = cy - r * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (let i = 1; i < 8; i++) ctx.lineTo(verts[i][0], verts[i][1]);
   ctx.closePath();
 }
 
@@ -696,7 +729,7 @@ function draw(data) {
   // Octagon gate
   ctx.strokeStyle = '#666';
   ctx.lineWidth = 2;
-  drawOctagon(stickCX, stickCY, stickR);
+  drawOctagon(ctx, stickCX, stickCY, stickR);
   ctx.stroke();
 
   // Crosshair
@@ -724,21 +757,26 @@ function draw(data) {
   ctx.fillText('X:' + fmt(sxS) + '  Y:' + fmt(syS), stickCX, stickCY + stickR + 30);
 }
 
-// WebSocket
+// WebSocket + requestAnimationFrame
+let latestData = null;
+
 function connect() {
   const wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
   const ws = new WebSocket(wsProto + location.host + '/ws');
 
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
-    draw(msg);
-  };
+  ws.onmessage = (ev) => { latestData = JSON.parse(ev.data); };
 
   ws.onclose = () => setTimeout(connect, 500);
   ws.onerror = () => ws.close();
 }
 
+function loop() {
+  if (latestData) { draw(latestData); }
+  requestAnimationFrame(loop);
+}
+
 connect();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
