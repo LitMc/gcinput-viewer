@@ -98,21 +98,45 @@ def render_line_raw(pad: str, pico: str, con: str) -> str:
     return f"{CYAN}│{RESET}{pad_s}{CYAN}│{RESET}{pico_s}{CYAN}│{RESET}{con_s}{CYAN}│{RESET}"
 
 
+def _parse_pm(parts: list[str]) -> dict[str, str] | None:
+    """Parse optional pm= field from T line parts.
+
+    Returns dict like {"P": "3", "C": "0", "R": "0"} or None.
+    """
+    if len(parts) >= 7 and parts[6].startswith("pm="):
+        pm_str = parts[6][3:]  # "P3/C0/R0"
+        result: dict[str, str] = {}
+        for token in pm_str.split("/"):
+            if len(token) >= 2:
+                result[token[0]] = token[1:]
+        return result
+    return None
+
+
+def _cmd_with_mode(name_str: str, mode: str | None) -> str:
+    """Append (M{n}) to command name if mode is available."""
+    if mode is not None:
+        return f"{name_str}(M{mode})"
+    return name_str
+
+
 def process_t_line(parts: list[str]) -> None:
-    """Process T (data frame) line: T,ts,port,dir,len,hex."""
+    """Process T (data frame) line: T,ts,port,dir,len,hex[,pm=...]."""
     if len(parts) < 6:
         return
     ts = parts[1]
     port = parts[2]
     direction = parts[3]
     hex_data = parts[5]
+    pm = _parse_pm(parts)
 
     ts_str = f"{DIM}{ts_ms(ts)}{RESET}"
-    name = f"{YELLOW}{cmd_name(hex_data)}{RESET}"
     h = f"{hex_abbr(hex_data)}"
 
     if port == "P" and direction == "T":
-        # Pico→Pad送信: PADカラム
+        # Pico→Pad送信: PADカラム — PAD PollMode
+        pad_mode = pm.get("P") if pm else None
+        name = f"{YELLOW}{_cmd_with_mode(cmd_name(hex_data), pad_mode)}{RESET}"
         print(render_line_raw(f"  {ts_str}", "", ""))
         arrow = f"    {CYAN}◀── {name} ──┤{RESET}"
         print(render_line_raw(arrow, "", ""))
@@ -122,14 +146,18 @@ def process_t_line(parts: list[str]) -> None:
         arrow = f"  {h} {CYAN}────▶│{RESET}"
         print(render_line_raw(arrow, "", ""))
     elif port == "C" and direction == "R":
-        # Console→Pico受信: CONカラム
+        # Console→Pico受信: CONカラム — Console PollMode
+        con_mode = pm.get("C") if pm else None
+        name = f"{YELLOW}{_cmd_with_mode(cmd_name(hex_data), con_mode)}{RESET}"
         print(render_line_raw("", "", f"  {ts_str}"))
         arrow = f"{CYAN}├── {name} ──▶{RESET}"
         print(render_line_raw("", "", arrow))
     elif port == "C" and direction == "T":
-        # Pico→Console送信: CONカラム
+        # Pico→Console送信: CONカラム — Reply PollMode
+        reply_mode = pm.get("R") if pm else None
+        name = f"{YELLOW}{_cmd_with_mode(cmd_name(hex_data), reply_mode)}{RESET}"
         print(render_line_raw("", "", f"  {ts_str}"))
-        arrow = f"{CYAN}│◀── {RESET}{h}"
+        arrow = f"{CYAN}│◀── {name} {RESET}{h}"
         print(render_line_raw("", "", arrow))
 
 
